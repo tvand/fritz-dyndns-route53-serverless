@@ -153,7 +153,7 @@ Resources:
           if (!headers.hasOwnProperty('Authorization')) {
             return false;
           }
-          const basic = new Buffer(headers.Authorization.split(' ')[1], 'base64').toString();
+          const basic = Buffer.from(headers.Authorization.split(' ')[1], 'base64').toString();
           const reqCredentials = basic.split(':');
         
           return !(reqCredentials[0] !== username || reqCredentials[1] !== password);
