@@ -14,3 +14,8 @@ But it can also be also a great example of Serverless application on AWS.
 
 
 ## Deployment
+
+## Usage
+```
+curl -u <username>:<password> https://<api-name>.execute-api.<aws-region>.amazonaws.com/v1/record
+```
