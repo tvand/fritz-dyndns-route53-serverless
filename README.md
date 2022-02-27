@@ -18,7 +18,7 @@ But it can also be also a great example of Serverless application on AWS.
 |RsDomains      |List of domain names to update (comma separated)   |yes     |             |
 |DynDnsUsername |FritzBox DynDns UserName                           |yes     |             |
 |DynDnsPassword |FritzBox DynDns Password                           |yes     |             |
-|ApiEndpointConf|API Gateway Endpoint Config (EDGE/REGIONAL/PRIVATE)|no      |REGOINAL     |
+|ApiEndpointConf|API Gateway Endpoint Config (EDGE/REGIONAL/PRIVATE)|no      |REGIONAL     |
 |ApiStageName   |Name of API Stage                                  |no      |v1           |
 
 ## Deployment
