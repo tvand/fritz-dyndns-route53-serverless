@@ -12,8 +12,18 @@ But it can also be also a great example of Serverless application on AWS.
 
 ## Configuration
 
+|Parameter      |Description                                        |Required|Default Value|
+|:--------------|:--------------------------------------------------|:-------|:------------|
+|HostedZoneId   |Hosted zone ID of your domain                      |yes     |             |
+|RsDomains      |List of domain names to update (comma separated)   |yes     |             |
+|DynDnsUsername |FritzBox DynDns UserName                           |yes     |             |
+|DynDnsPassword |FritzBox DynDns Password                           |yes     |             |
+|ApiEndpointConf|API Gateway Endpoint Config (EDGE|REGIONAL|PRIVATE)|no      |REGOINAL     |
+|ApiStageName   |Name of API Stage                                  |no      |v1           |
 
 ## Deployment
+
+Deploy template.yaml as AWS Cloudformation Stack
 
 ## Usage
 ```
