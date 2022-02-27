@@ -1,3 +1,4 @@
 template-output.yml
 environments/*.mvars
-.idea
+/.project
+/.settings
