@@ -8,7 +8,7 @@ $(error You must specify bucket parameter)
 endif
 
 ## Package Cloud Formation template
-package: src/template.yml src/app/main.js
+package: src/template.yml
 	aws --profile $(profile) --region $(region) \
 	cloudformation package \
 		--template-file src/template.yml \
