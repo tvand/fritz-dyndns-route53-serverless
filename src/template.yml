@@ -10,6 +10,9 @@ Parameters:
   RsDomains:
     Description: List of domains to update split by comma
     Type: String
+  IP6TunnelID:
+    Description: ID of he.net IPv6 tunnel
+    Type: String
   DynDnsUsername:
     Description: Fritz DynDns UserName
     Type: String
@@ -83,6 +86,7 @@ Resources:
     Properties:
       Handler: index.handler
       Runtime: nodejs14.x
+      Timeout: 10
       Events:
         recordUpdate:
           Type: Api
@@ -93,6 +97,7 @@ Resources:
       Environment:
         Variables:
           rsDomains: !Ref RsDomains
+          tunnelID: !Ref IP6TunnelID
           username: !Ref DynDnsUsername
           password: !Ref DynDnsPassword
           hostedZoneId: !Ref HostedZoneId
@@ -105,9 +110,10 @@ Resources:
               Resource: !Sub "arn:aws:route53:::hostedzone/${HostedZoneId}"
       InlineCode: |
         'use strict';
+        const https = require('https');
         const AWS = require('aws-sdk');
         const route53 = new AWS.Route53({apiVersion: '2013-04-01'});
-        const { hostedZoneId, rsDomains, username, password } = process.env;
+        const { hostedZoneId, rsDomains, tunnelID, username, password } = process.env;
         
         /**
          * Format API Gateway response
@@ -149,6 +155,22 @@ Resources:
           });
         };
         
+        const updateIP6Tunnel = (ip) => {
+          var options = {
+            hostname: 'ipv4.tunnelbroker.net',
+            path: '/nic/update?hostname=' + tunnelID + '&myip=' + ip,
+            auth: username + ':' + password
+          };
+        
+          https.get(options, (resp) => {
+            resp.on('data', (d) => {
+              console.log(d.toString());
+            });
+          }).on("error", (err) => {
+            console.error("Error: " + err.message);
+          });
+        };
+        
         const checkBasicAuth = (headers) => {
           if (!headers.hasOwnProperty('Authorization')) {
             return false;
@@ -166,10 +188,11 @@ Resources:
           if (!event.headers.hasOwnProperty('X-Forwarded-For')) {
             callback(null, createResponse(500, {"error": "missing ip in proxy http headers"}));
           }
+          updateIP6Tunnel(event.headers['X-Forwarded-For']);
           updateRecord(event.headers['X-Forwarded-For'], (err, success) => {
             if (err) {
               console.error(err);
             }
             callback(err, createResponse(200, {"status": success}));
           });
-        };              
+        };
