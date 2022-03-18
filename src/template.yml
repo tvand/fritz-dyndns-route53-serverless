@@ -159,14 +159,23 @@ Resources:
           var options = {
             hostname: 'ipv4.tunnelbroker.net',
             path: '/nic/update?hostname=' + tunnelID + '&myip=' + ip,
-            auth: username + ':' + password
+            auth: username + ':' + password,
+            family: 4,
+            timeout: 3000
           };
         
-          https.get(options, (resp) => {
+          const req = https.get(options, (resp) => {
             resp.on('data', (d) => {
               console.log(d.toString());
             });
-          }).on("error", (err) => {
+          });
+          
+          req.on('timeout', () => {
+            console.log("Request timeout");
+            req.abort();
+          });
+          req.on('error', (err) => {
+            if (req.aborted) return;
             console.error("Error: " + err.message);
           });
         };
