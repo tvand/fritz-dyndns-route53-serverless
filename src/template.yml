@@ -196,15 +196,15 @@ Resources:
             if (err) {
               console.error(err);
             } else {
-              console.log("IPV4 " + event.headers['X-Forwarded-For'] + ": " + success)
+              console.log("IPV4 " + event.headers['X-Forwarded-For'] + ": " + success);
             }
           });
-          if (event.queryStringParameters.hasOwnProperty('ipv6')) {
+          if (event.queryStringParameters !== null && event.queryStringParameters.hasOwnProperty('ipv6')) {
             updateIP6Record(event.queryStringParameters['ipv6'], (err, success) => {
               if (err) {
                 console.error(err);
               } else {
-                console.log("IPV6 " + event.queryStringParameters['ipv6'] + ": " + success)
+                console.log("IPV6 " + event.queryStringParameters['ipv6'] + ": " + success);
               }
             });
           }
