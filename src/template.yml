@@ -10,9 +10,6 @@ Parameters:
   RsDomains:
     Description: List of domains to update split by comma
     Type: String
-  IP6TunnelID:
-    Description: ID of he.net IPv6 tunnel
-    Type: String
   DynDnsUsername:
     Description: Fritz DynDns UserName
     Type: String
@@ -97,7 +94,6 @@ Resources:
       Environment:
         Variables:
           rsDomains: !Ref RsDomains
-          tunnelID: !Ref IP6TunnelID
           username: !Ref DynDnsUsername
           password: !Ref DynDnsPassword
           hostedZoneId: !Ref HostedZoneId
@@ -110,10 +106,9 @@ Resources:
               Resource: !Sub "arn:aws:route53:::hostedzone/${HostedZoneId}"
       InlineCode: |
         'use strict';
-        const https = require('https');
         const AWS = require('aws-sdk');
         const route53 = new AWS.Route53({apiVersion: '2013-04-01'});
-        const { hostedZoneId, rsDomains, tunnelID, username, password } = process.env;
+        const { hostedZoneId, rsDomains, username, password } = process.env;
         
         /**
          * Format API Gateway response
@@ -155,28 +150,28 @@ Resources:
           });
         };
         
-        const updateIP6Tunnel = (ip) => {
-          var options = {
-            hostname: 'ipv4.tunnelbroker.net',
-            path: '/nic/update?hostname=' + tunnelID + '&myip=' + ip,
-            auth: username + ':' + password,
-            family: 4,
-            timeout: 3000
+        const updateIP6Record = (ip, callback) => {
+          const params = {
+            ChangeBatch: {
+              Changes: rsDomains.split(',').map((domain => {
+                return {
+                  Action: "UPSERT",
+                  ResourceRecordSet: {
+                    Name: domain,
+                    ResourceRecords: [{
+                      Value: ip
+                    }],
+                    TTL: 60,
+                    Type: "AAAA"
+                  }
+                }
+              })),
+              Comment: "FRITZ!Box IPv6 records"
+            },
+            HostedZoneId: hostedZoneId
           };
-        
-          const req = https.get(options, (resp) => {
-            resp.on('data', (d) => {
-              console.log(d.toString());
-            });
-          });
-          
-          req.on('timeout', () => {
-            console.log("Request timeout");
-            req.abort();
-          });
-          req.on('error', (err) => {
-            if (req.aborted) return;
-            console.error("Error: " + err.message);
+          route53.changeResourceRecordSets(params, (err, data) => {
+            callback(err, data && data.hasOwnProperty('ChangeInfo') ? data.ChangeInfo.Status : 'FAIL');
           });
         };
         
@@ -197,11 +192,21 @@ Resources:
           if (!event.headers.hasOwnProperty('X-Forwarded-For')) {
             callback(null, createResponse(500, {"error": "missing ip in proxy http headers"}));
           }
-          updateIP6Tunnel(event.headers['X-Forwarded-For']);
           updateRecord(event.headers['X-Forwarded-For'], (err, success) => {
             if (err) {
               console.error(err);
+            } else {
+              console.log("IPV4 " + event.headers['X-Forwarded-For'] + ": " + success)
             }
-            callback(err, createResponse(200, {"status": success}));
           });
+          if (event.queryStringParameters.hasOwnProperty('ipv6')) {
+            updateIP6Record(event.queryStringParameters['ipv6'], (err, success) => {
+              if (err) {
+                console.error(err);
+              } else {
+                console.log("IPV6 " + event.queryStringParameters['ipv6'] + ": " + success)
+              }
+            });
+          }
+          callback(null, createResponse(200, {"status": "OK"}));
         };
