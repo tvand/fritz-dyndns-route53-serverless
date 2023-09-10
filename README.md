@@ -1,9 +1,7 @@
 # FRITZ!Box DynDNS Serverless API
 
-If like me you are willing to keep DNS record up to date when your dynamic FritzBox ip change.
-You can easily deploy this serverless application and using it.
-
-But it can also be also a great example of Serverless application on AWS.
+If like me you are willing to keep a DNS record up to date when your dynamic FritzBox ip changes.
+You can easily deploy this serverless application and use it.
 
 ## Requirements
 
@@ -26,6 +24,11 @@ But it can also be also a great example of Serverless application on AWS.
 Deploy template.yaml as AWS Cloudformation Stack
 
 ## Usage
+* IP-V4
 ```
 curl -u <username>:<password> https://<api-name>.execute-api.<aws-region>.amazonaws.com/v1/record
+```
+* IP-V6
+```
+curl -u <username>:<password> https://<api-name>.execute-api.<aws-region>.amazonaws.com/v1/record?ipv6=<ip6addr>
 ```
