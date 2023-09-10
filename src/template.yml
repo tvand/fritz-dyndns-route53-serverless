@@ -31,8 +31,10 @@ Resources:
   Api:
     Type: AWS::Serverless::Api
     Properties:
-      StageName: !Ref ApiStageName
-      EndpointConfiguration: !Ref ApiEndpointConf
+      StageName: 
+        Ref: ApiStageName
+      EndpointConfiguration: 
+        Ref: ApiEndpointConf
       Cors:
         AllowOrigin: "'*'"
         AllowHeaders: "'X-Forwarded-For, Authorization'"
@@ -82,28 +84,34 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Handler: index.handler
-      Runtime: nodejs14.x
+      Runtime: nodejs18.x
       Timeout: 10
       Events:
         recordUpdate:
           Type: Api
           Properties:
-            RestApiId: !Ref Api
+            RestApiId: 
+              Ref: Api
             Path: /record
             Method: get
       Environment:
         Variables:
-          rsDomains: !Ref RsDomains
-          username: !Ref DynDnsUsername
-          password: !Ref DynDnsPassword
-          hostedZoneId: !Ref HostedZoneId
+          rsDomains: 
+            Ref: RsDomains
+          username: 
+            Ref: DynDnsUsername
+          password: 
+            Ref: DynDnsPassword
+          hostedZoneId: 
+            Ref: HostedZoneId
       Policies:
         - Version: '2012-10-17'
           Statement:
             - Effect: Allow
               Action:
                 - route53:ChangeResourceRecordSets
-              Resource: !Sub "arn:aws:route53:::hostedzone/${HostedZoneId}"
+              Resource: 
+                Fn::Sub: "arn:aws:route53:::hostedzone/${HostedZoneId}"
       InlineCode: |
         'use strict';
         const AWS = require('aws-sdk');
