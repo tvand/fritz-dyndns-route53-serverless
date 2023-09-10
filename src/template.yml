@@ -134,7 +134,7 @@ Resources:
           };
         };
         
-        const updateRecord = (ip, callback) => {
+        const updateRecord = (ip, type, comment, callback) => {
           const params = {
             ChangeBatch: {
               Changes: rsDomains.split(',').map((domain => {
@@ -146,42 +146,15 @@ Resources:
                       Value: ip
                     }],
                     TTL: 60,
-                    Type: "A"
+                    Type: type
                   }
                 }
               })),
-              Comment: "FRITZ!Box records"
+              Comment: comment
             },
             HostedZoneId: hostedZoneId
           };
           
-          const command = new ChangeResourceRecordSetsCommand(params);
-          client.send(command, (err, data) => {
-            callback(err, data && data.hasOwnProperty('ChangeInfo') ? data.ChangeInfo.Status : 'FAIL');
-          });
-        };
-        
-        const updateIP6Record = (ip, callback) => {
-          const params = {
-            ChangeBatch: {
-              Changes: rsDomains.split(',').map((domain => {
-                return {
-                  Action: "UPSERT",
-                  ResourceRecordSet: {
-                    Name: domain,
-                    ResourceRecords: [{
-                      Value: ip
-                    }],
-                    TTL: 60,
-                    Type: "AAAA"
-                  }
-                }
-              })),
-              Comment: "FRITZ!Box IPv6 records"
-            },
-            HostedZoneId: hostedZoneId
-          };
-        
           const command = new ChangeResourceRecordSetsCommand(params);
           client.send(command, (err, data) => {
             callback(err, data && data.hasOwnProperty('ChangeInfo') ? data.ChangeInfo.Status : 'FAIL');
@@ -205,7 +178,7 @@ Resources:
           if (!event.headers.hasOwnProperty('X-Forwarded-For')) {
             callback(null, createResponse(500, {"error": "missing ip in proxy http headers"}));
           }
-          updateRecord(event.headers['X-Forwarded-For'], (err, success) => {
+          updateRecord(event.headers['X-Forwarded-For'], "A", "FRITZ!Box IPv4 record", (err, success) => {
             if (err) {
               console.error(err);
             } else {
@@ -213,7 +186,7 @@ Resources:
             }
           });
           if (event.queryStringParameters !== null && event.queryStringParameters.hasOwnProperty('ipv6')) {
-            updateIP6Record(event.queryStringParameters['ipv6'], (err, success) => {
+            updateRecord(event.queryStringParameters['ipv6'], "AAAA", "FRITZ!Box IPv6 record", (err, success) => {
               if (err) {
                 console.error(err);
               } else {
