@@ -83,8 +83,10 @@ Resources:
   UpdateRecordFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: index.handler
-      Runtime: nodejs18.x
+      Handler: index.lambda_handler
+      Runtime: python3.12
+      Architectures:
+        - arm64
       Timeout: 10
       Events:
         recordUpdate:
@@ -113,86 +115,95 @@ Resources:
               Resource: 
                 Fn::Sub: "arn:aws:route53:::hostedzone/${HostedZoneId}"
       InlineCode: |
-        'use strict';
-        // import { Route53Client, ChangeResourceRecordSetsCommand } from "@aws-sdk/client-route-53"; // ES Modules import
-        const { Route53Client, ChangeResourceRecordSetsCommand } = require("@aws-sdk/client-route-53"); // CommonJS import
-        const client = new Route53Client({apiVersion: '2013-04-01'});
-        const { hostedZoneId, rsDomains, username, password } = process.env;
+        import os
+        import logging
+        import json
+        import boto3
+        import base64
         
-        /**
-         * Format API Gateway response
-         * @param {number} statusCode
-         * @param {object} body
-         */
-        const createResponse = (statusCode, body) => {
-          return {
-            statusCode: statusCode,
-            headers: {
-              "Access-Control-Allow-Origin" : "*"
-            },
-            body: body ? JSON.stringify(body) : null
-          };
-        };
+        #Set up our Session and Client
+        session = boto3.session.Session()
+        client = session.client(
+            service_name='route53',
+            region_name=os.getenv('AWS_REGION')
+        )
         
-        const updateRecord = (ip, type, comment, callback) => {
-          const params = {
-            ChangeBatch: {
-              Changes: rsDomains.split(',').map((domain => {
-                return {
-                  Action: "UPSERT",
-                  ResourceRecordSet: {
-                    Name: domain,
-                    ResourceRecords: [{
-                      Value: ip
-                    }],
-                    TTL: 60,
-                    Type: type
-                  }
-                }
-              })),
-              Comment: comment
-            },
-            HostedZoneId: hostedZoneId
-          };
-          
-          const command = new ChangeResourceRecordSetsCommand(params);
-          client.send(command, (err, data) => {
-            callback(err, data && data.hasOwnProperty('ChangeInfo') ? data.ChangeInfo.Status : 'FAIL');
-          });
-        };
+        #Set up logging
+        logger = logging.getLogger()
+        logger.setLevel(os.getenv('LOG_LEVEL', 'INFO'))
         
-        const checkBasicAuth = (headers) => {
-          if (!headers.hasOwnProperty('Authorization')) {
-            return false;
-          }
-          const basic = Buffer.from(headers.Authorization.split(' ')[1], 'base64').toString();
-          const reqCredentials = basic.split(':');
+        def lambda_handler(event, context):
+            logger.debug("Event: %s", json.dumps(event))
         
-          return !(reqCredentials[0] !== username || reqCredentials[1] !== password);
-        };
+            headers = event['headers']
+            if not checkBasicAuth(headers, os.getenv('username'), os.getenv('password')):
+                return createResponse(403, {"error": "Forbidden"})
         
-        exports.handler = (event, context, callback) => {
-          if (false === checkBasicAuth(event.headers)) {
-            callback(null, createResponse(403, {"error": "Not authorized"}));
-          }
-          if (!event.headers.hasOwnProperty('X-Forwarded-For')) {
-            callback(null, createResponse(500, {"error": "missing ip in proxy http headers"}));
-          }
-          updateRecord(event.headers['X-Forwarded-For'], "A", "FRITZ!Box IPv4 record", (err, success) => {
-            if (err) {
-              console.error(err);
-            } else {
-              console.log("IPV4 " + event.headers['X-Forwarded-For'] + ": " + success);
+            if not 'X-Forwarded-For' in headers:
+                return createResponse(500, {"error": "Missing IP in proxy http headers"})
+            
+            domains = os.getenv('rsDomains')
+            hostedZoneId = os.getenv('hostedZoneId')
+        
+            responseIPV4 = updateRecord(domains, headers['X-Forwarded-For'], "A", "FRITZ!Box IPv4 record", hostedZoneId)
+            if responseIPV4.get('ChangeInfo') and responseIPV4['ChangeInfo']['Status'] != 'FAIL':
+                logger.info("IPV4 %s: %s", headers['X-Forwarded-For'], responseIPV4['ChangeInfo']['Status'])
+                
+            if event.get('queryStringParameters') and event['queryStringParameters'].get('ipv6'):
+                responseIPV6 = updateRecord(domains, event['queryStringParameters']['ipv6'], "AAAA", "FRITZ!Box IPv6 record", hostedZoneId)
+                if responseIPV6.get('ChangeInfo') and responseIPV6['ChangeInfo']['Status'] != 'FAIL':
+                    logger.info("IPV6 %s: %s", event['queryStringParameters']['ipv6'], responseIPV4['ChangeInfo']['Status'])
+        
+            return createResponse(200, {"status": "OK"})
+        
+        # Format API Gateway response
+        # @param {number} statusCode
+        # @param {object} body
+        def createResponse(statusCode, body):
+            if body:
+                responseBody = body
+            else:
+                responseBody = {}
+                
+            return {
+                'statusCode': statusCode,
+                'headers': {
+                    'Access-Control-Allow-Origin' : '*',
+                    'Content-Type' : 'application/json'
+                },
+                'body': responseBody
             }
-          });
-          if (event.queryStringParameters !== null && event.queryStringParameters.hasOwnProperty('ipv6')) {
-            updateRecord(event.queryStringParameters['ipv6'], "AAAA", "FRITZ!Box IPv6 record", (err, success) => {
-              if (err) {
-                console.error(err);
-              } else {
-                console.log("IPV6 " + event.queryStringParameters['ipv6'] + ": " + success);
-              }
-            });
-          }
-          callback(null, createResponse(200, {"status": "OK"}));
-        };
+        
+        def checkBasicAuth(headers, username, password):
+          if not 'Authorization' in headers:
+            return false
+          
+          auth = headers['Authorization'].split()[1]
+          u,p = base64.b64decode(auth.encode("utf-8")).decode("utf-8").split(':')
+        
+          return u == username and p == password
+        
+        def updateRecord(domains, ip, type, comment, zoneid):
+            response = client.change_resource_record_sets(
+                ChangeBatch={
+                    'Changes': list(map(lambda domain:
+                        {
+                            'Action': 'UPSERT',
+                            'ResourceRecordSet': {
+                                'Name': domain,
+                                'ResourceRecords': [
+                                    {
+                                        'Value': ip,
+                                    },
+                                ],
+                                'TTL': 60,
+                                'Type': type,
+                            },
+                        },
+                        domains.split(','))),
+                    'Comment': comment,
+                },
+                HostedZoneId=zoneid,
+            )
+        
+            return response
