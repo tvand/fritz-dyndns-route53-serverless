@@ -10,6 +10,9 @@ Parameters:
   RsDomains:
     Description: List of domains to update split by comma
     Type: String
+  DynDnsFqdn:
+    Type: String
+    Description: Fully qualified domain name of the API endpoint
   DynDnsUsername:
     Description: Fritz DynDns UserName
     Type: String
@@ -28,11 +31,30 @@ Parameters:
     Default: v1
 
 Resources:
+  ApiCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties: 
+      DomainName: 
+        Ref: DynDnsFqdn
+      ValidationMethod: DNS
+      DomainValidationOptions:
+      - DomainName: 
+          Ref: DynDnsFqdn
+        HostedZoneId: 
+          Ref: HostedZoneId
   Api:
     Type: AWS::Serverless::Api
     Properties:
       StageName: 
         Ref: ApiStageName
+      Domain:
+        DomainName: 
+          Ref: DynDnsFqdn
+        CertificateArn: 
+          Ref: ApiCertificate
+        Route53:
+          HostedZoneId:
+            Ref: HostedZoneId
       EndpointConfiguration: 
         Ref: ApiEndpointConf
       Cors:

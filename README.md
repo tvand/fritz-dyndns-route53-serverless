@@ -14,6 +14,7 @@ You can easily deploy this serverless application and use it.
 |:--------------|:--------------------------------------------------|:-------|:------------|
 |HostedZoneId   |Hosted zone ID of your domain                      |yes     |             |
 |RsDomains      |List of domain names to update (comma separated)   |yes     |             |
+|DynDnsFqdn     |Custom API domain name (same zone as RsDomains)    |yes     |             |
 |DynDnsUsername |FritzBox DynDns UserName                           |yes     |             |
 |DynDnsPassword |FritzBox DynDns Password                           |yes     |             |
 |ApiEndpointConf|API Gateway Endpoint Config (EDGE/REGIONAL/PRIVATE)|no      |REGIONAL     |
@@ -30,5 +31,5 @@ curl -u <username>:<password> https://<api-name>.execute-api.<aws-region>.amazon
 ```
 * IP-V6
 ```
-curl -u <username>:<password> https://<api-name>.execute-api.<aws-region>.amazonaws.com/v1/record?ipv6=<ip6addr>
+curl -u <username>:<password> https://custom.domain.org/record?ipv6=<ip6addr>
 ```
