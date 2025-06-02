@@ -44,9 +44,9 @@ def lambda_handler(event, context):
 # @param {object} body
 def createResponse(statusCode, body):
     if body:
-        responseBody = body
+        responseBody = json.dumps(body)
     else:
-        responseBody = {}
+        responseBody = '{}'
         
     return {
         'statusCode': statusCode,
